@@ -13,6 +13,7 @@
 #include "../../settings/cache_settings.h"
 #include "../ui/picture_loader/picture_loader.h"
 #include "../ui/pixel_map_generator.h"
+#include "concrete_deck_commands.h"
 #include "pb/command_deck_upload.pb.h"
 #include "pb/response.pb.h"
 #include "tab_supervisor.h"
@@ -44,6 +45,9 @@ AbstractTabDeckEditor::AbstractTabDeckEditor(TabSupervisor *_tabSupervisor) : Ta
 {
     setDockOptions(QMainWindow::AnimatedDocks | QMainWindow::AllowNestedDocks | QMainWindow::AllowTabbedDocks);
 
+    // Initialize command manager for undo/redo functionality
+    m_commandManager = new CommandManager(this, 100); // 100 command history limit
+
     databaseDisplayDockWidget = new DeckEditorDatabaseDisplayWidget(this);
     deckDockWidget = new DeckEditorDeckDockWidget(this);
     cardInfoDockWidget = new DeckEditorCardInfoDockWidget(this);
@@ -70,6 +74,41 @@ AbstractTabDeckEditor::AbstractTabDeckEditor(TabSupervisor *_tabSupervisor) : Ta
 
     connect(&SettingsCache::instance().shortcuts(), &ShortcutsSettings::shortCutChanged, this,
             &AbstractTabDeckEditor::refreshShortcuts);
+
+    // Connect command manager signals for UI updates
+    connect(m_commandManager, &CommandManager::commandExecuted, this, [this](const QString &description) {
+        setModified(true);
+        deckMenu->setSaveStatus(true);
+        // Refresh the current card selection if needed
+        if (deckDockWidget->deckView->currentIndex().isValid()) {
+            updateCard(deckDockWidget->getCurrentCard());
+        }
+    });
+
+    connect(m_commandManager, &CommandManager::commandUndone, this, [this](const QString &description) {
+        // Update UI after undo - check if deck is still modified
+        setModified(!isBlankNewDeck());
+        deckMenu->setSaveStatus(!isBlankNewDeck());
+        // Refresh the current card selection
+        if (deckDockWidget->deckView->currentIndex().isValid()) {
+            updateCard(deckDockWidget->getCurrentCard());
+        }
+    });
+
+    connect(m_commandManager, &CommandManager::commandRedone, this, [this](const QString &description) {
+        setModified(true);
+        deckMenu->setSaveStatus(true);
+        // Refresh the current card selection
+        if (deckDockWidget->deckView->currentIndex().isValid()) {
+            updateCard(deckDockWidget->getCurrentCard());
+        }
+    });
+
+    connect(m_commandManager, &CommandManager::undoRedoStateChanged, this, [this](bool canUndo, bool canRedo) {
+        if (deckMenu) {
+            deckMenu->updateUndoRedoActions(canUndo, canRedo);
+        }
+    });
 }
 
 void AbstractTabDeckEditor::updateCard(const ExactCard &card)
@@ -95,12 +134,17 @@ void AbstractTabDeckEditor::addCardHelper(const ExactCard &card, QString zoneNam
     if (card.getInfo().getIsToken())
         zoneName = DECK_ZONE_TOKENS;
 
-    QModelIndex newCardIndex = deckDockWidget->deckModel->addCard(card, zoneName);
-    // recursiveExpand(newCardIndex);
-    deckDockWidget->deckView->clearSelection();
-    deckDockWidget->deckView->setCurrentIndex(newCardIndex);
-    setModified(true);
-    databaseDisplayDockWidget->searchEdit->setSelection(0, databaseDisplayDockWidget->searchEdit->text().length());
+    // Use command pattern for undo/redo support
+    auto command = std::make_unique<AddCardCommand>(deckDockWidget->deckModel, card, zoneName, 1);
+    if (m_commandManager->executeCommand(std::move(command))) {
+        // Find the newly added card and select it
+        QModelIndex newCardIndex = deckDockWidget->deckModel->findCard(card.getName(), zoneName);
+        if (newCardIndex.isValid()) {
+            deckDockWidget->deckView->clearSelection();
+            deckDockWidget->deckView->setCurrentIndex(newCardIndex);
+        }
+        databaseDisplayDockWidget->searchEdit->setSelection(0, databaseDisplayDockWidget->searchEdit->text().length());
+    }
 }
 
 void AbstractTabDeckEditor::actAddCard(const ExactCard &card)
@@ -109,23 +153,31 @@ void AbstractTabDeckEditor::actAddCard(const ExactCard &card)
         actAddCardToSideboard(card);
     else
         addCardHelper(card, DECK_ZONE_MAIN);
-    deckMenu->setSaveStatus(true);
 }
 
 void AbstractTabDeckEditor::actAddCardToSideboard(const ExactCard &card)
 {
     addCardHelper(card, DECK_ZONE_SIDE);
-    deckMenu->setSaveStatus(true);
 }
 
 void AbstractTabDeckEditor::actDecrementCard(const ExactCard &card)
 {
-    emit decrementCard(card, DECK_ZONE_MAIN);
+    if (!card)
+        return;
+        
+    QString zoneName = card.getInfo().getIsToken() ? DECK_ZONE_TOKENS : DECK_ZONE_MAIN;
+    auto command = std::make_unique<RemoveCardCommand>(deckDockWidget->deckModel, card, zoneName, 1);
+    m_commandManager->executeCommand(std::move(command));
 }
 
 void AbstractTabDeckEditor::actDecrementCardFromSideboard(const ExactCard &card)
 {
-    emit decrementCard(card, DECK_ZONE_SIDE);
+    if (!card)
+        return;
+        
+    QString zoneName = card.getInfo().getIsToken() ? DECK_ZONE_TOKENS : DECK_ZONE_SIDE;
+    auto command = std::make_unique<RemoveCardCommand>(deckDockWidget->deckModel, card, zoneName, 1);
+    m_commandManager->executeCommand(std::move(command));
 }
 
 void AbstractTabDeckEditor::actSwapCard(const ExactCard &card, const QString &zoneName)
