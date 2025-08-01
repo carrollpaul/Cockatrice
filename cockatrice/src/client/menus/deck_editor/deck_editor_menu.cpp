@@ -79,6 +79,19 @@ DeckEditorMenu::DeckEditorMenu(AbstractTabDeckEditor *parent) : QMenu(parent), d
     aClose = new QAction(QString(), this);
     connect(aClose, &QAction::triggered, deckEditor, &AbstractTabDeckEditor::closeRequest);
 
+    // Undo/Redo actions
+    aUndo = new QAction(QString(), this);
+    connect(aUndo, &QAction::triggered, deckEditor->getCommandManager(), &CommandManager::undo);
+    aUndo->setEnabled(false); // Initially disabled
+
+    aRedo = new QAction(QString(), this);
+    connect(aRedo, &QAction::triggered, deckEditor->getCommandManager(), &CommandManager::redo);
+    aRedo->setEnabled(false); // Initially disabled
+
+    // Connect to command manager state changes
+    connect(deckEditor->getCommandManager(), &CommandManager::undoRedoStateChanged,
+            this, &DeckEditorMenu::updateUndoRedoActions);
+
     editDeckInClipboardMenu = new QMenu(this);
     editDeckInClipboardMenu->addAction(aEditDeckInClipboard);
     editDeckInClipboardMenu->addAction(aEditDeckInClipboardRaw);
@@ -94,6 +107,9 @@ DeckEditorMenu::DeckEditorMenu(AbstractTabDeckEditor *parent) : QMenu(parent), d
     addMenu(loadRecentDeckMenu);
     addAction(aSaveDeck);
     addAction(aSaveDeckAs);
+    addSeparator();
+    addAction(aUndo);
+    addAction(aRedo);
     addSeparator();
     addAction(aLoadDeckFromClipboard);
     addMenu(editDeckInClipboardMenu);
@@ -125,6 +141,26 @@ void DeckEditorMenu::setSaveStatus(bool newStatus)
     saveDeckToClipboardMenu->setEnabled(newStatus);
     aPrintDeck->setEnabled(newStatus);
     analyzeDeckMenu->setEnabled(newStatus);
+}
+
+void DeckEditorMenu::updateUndoRedoActions(bool canUndo, bool canRedo)
+{
+    aUndo->setEnabled(canUndo);
+    aRedo->setEnabled(canRedo);
+
+    // Update action text with descriptions if available
+    CommandManager *commandManager = deckEditor->getCommandManager();
+    if (canUndo) {
+        aUndo->setText(commandManager->undoDescription());
+    } else {
+        aUndo->setText(tr("&Undo"));
+    }
+
+    if (canRedo) {
+        aRedo->setText(commandManager->redoDescription());
+    } else {
+        aRedo->setText(tr("&Redo"));
+    }
 }
 
 void DeckEditorMenu::updateRecentlyOpened()
@@ -178,6 +214,9 @@ void DeckEditorMenu::retranslateUi()
     aAnalyzeDeckTappedout->setText(tr("Analyze deck (tappedout.net)"));
 
     aClose->setText(tr("&Close"));
+    
+    aUndo->setText(tr("&Undo"));
+    aRedo->setText(tr("&Redo"));
 }
 
 void DeckEditorMenu::refreshShortcuts()
@@ -206,4 +245,7 @@ void DeckEditorMenu::refreshShortcuts()
         shortcuts.getShortcut("TabDeckEditor/aSaveDeckToClipboardRawNoSetInfo"));
 
     aClose->setShortcuts(shortcuts.getShortcut("TabDeckEditor/aClose"));
+    
+    aUndo->setShortcuts(shortcuts.getShortcut("TabDeckEditor/aUndo"));
+    aRedo->setShortcuts(shortcuts.getShortcut("TabDeckEditor/aRedo"));
 }
