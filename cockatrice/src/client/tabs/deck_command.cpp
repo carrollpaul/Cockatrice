@@ -1,10 +1,7 @@
 #include "deck_command.h"
 
-#include "../../deck/deck_loader.h"
 #include "../../game/cards/card_info.h"
 #include "../../game/cards/exact_card.h"
-
-#include <QDateTime>
 
 bool DeckCommand::isValidCard(const ExactCard &card) const
 {
