@@ -127,10 +127,15 @@ void AbstractTabDeckEditor::onDeckModified()
     deckMenu->setSaveStatus(!isBlankNewDeck());
 }
 
-void AbstractTabDeckEditor::addCardHelper(const ExactCard &card, QString zoneName)
+void AbstractTabDeckEditor::actAddCard(const ExactCard &card)
 {
     if (!card)
         return;
+
+    // Determine target zone based on modifier key
+    QString zoneName = (QApplication::keyboardModifiers() & Qt::ControlModifier) ? DECK_ZONE_SIDE : DECK_ZONE_MAIN;
+
+    // Token cards always go to tokens zone
     if (card.getInfo().getIsToken())
         zoneName = DECK_ZONE_TOKENS;
 
@@ -147,24 +152,11 @@ void AbstractTabDeckEditor::addCardHelper(const ExactCard &card, QString zoneNam
     }
 }
 
-void AbstractTabDeckEditor::actAddCard(const ExactCard &card)
-{
-    if (QApplication::keyboardModifiers() & Qt::ControlModifier)
-        actAddCardToSideboard(card);
-    else
-        addCardHelper(card, DECK_ZONE_MAIN);
-}
-
-void AbstractTabDeckEditor::actAddCardToSideboard(const ExactCard &card)
-{
-    addCardHelper(card, DECK_ZONE_SIDE);
-}
-
 void AbstractTabDeckEditor::actDecrementCard(const ExactCard &card)
 {
     if (!card)
         return;
-        
+
     QString zoneName = card.getInfo().getIsToken() ? DECK_ZONE_TOKENS : DECK_ZONE_MAIN;
     auto command = std::make_unique<RemoveCardCommand>(deckDockWidget->deckModel, card, zoneName, 1);
     m_commandManager->executeCommand(std::move(command));
@@ -174,7 +166,7 @@ void AbstractTabDeckEditor::actDecrementCardFromSideboard(const ExactCard &card)
 {
     if (!card)
         return;
-        
+
     QString zoneName = card.getInfo().getIsToken() ? DECK_ZONE_TOKENS : DECK_ZONE_SIDE;
     auto command = std::make_unique<RemoveCardCommand>(deckDockWidget->deckModel, card, zoneName, 1);
     m_commandManager->executeCommand(std::move(command));
