@@ -1,11 +1,11 @@
 #ifndef DECK_COMMAND_H
 #define DECK_COMMAND_H
 
-#include <QObject>
+#include <QDateTime>
 #include <QString>
+#include <functional>
 #include <memory>
 
-class DeckLoader;
 class ExactCard;
 
 /**
@@ -137,17 +137,6 @@ protected:
      */
     DeckCommand() : m_timestamp(QDateTime::currentMSecsSinceEpoch())
     {
-    }
-
-    /**
-     * @brief Helper method to validate that a deck pointer is valid
-     *
-     * @param deck The deck pointer to validate
-     * @return true if the deck is valid and can be operated on
-     */
-    bool isValidDeck(const DeckLoader *deck) const
-    {
-        return deck != nullptr;
     }
 
     /**
