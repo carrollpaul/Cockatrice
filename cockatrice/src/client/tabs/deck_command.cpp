@@ -9,7 +9,7 @@ bool DeckCommand::isValidCard(const ExactCard &card) const
         return false;
     }
 
-    const CardInfo *cardInfo = card.getCardPtr();
+    CardInfoPtr cardInfo = card.getCardPtr();
     if (!cardInfo) {
         return false;
     }
