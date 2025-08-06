@@ -13,6 +13,7 @@
 #include "../../settings/cache_settings.h"
 #include "../ui/picture_loader/picture_loader.h"
 #include "../ui/pixel_map_generator.h"
+#include "concrete_deck_commands.h"
 #include "pb/command_deck_upload.pb.h"
 #include "pb/response.pb.h"
 #include "tab_supervisor.h"
@@ -44,6 +45,7 @@ AbstractTabDeckEditor::AbstractTabDeckEditor(TabSupervisor *_tabSupervisor) : Ta
 {
     setDockOptions(QMainWindow::AnimatedDocks | QMainWindow::AllowNestedDocks | QMainWindow::AllowTabbedDocks);
 
+    m_commandManager = new CommandManager(this, 100);
     databaseDisplayDockWidget = new DeckEditorDatabaseDisplayWidget(this);
     deckDockWidget = new DeckEditorDeckDockWidget(this);
     cardInfoDockWidget = new DeckEditorCardInfoDockWidget(this);

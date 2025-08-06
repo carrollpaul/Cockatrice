@@ -9,6 +9,7 @@
 #include "../ui/widgets/deck_editor/deck_editor_filter_dock_widget.h"
 #include "../ui/widgets/deck_editor/deck_editor_printing_selector_dock_widget.h"
 #include "../ui/widgets/visual_deck_storage/deck_preview/deck_preview_deck_tags_display_widget.h"
+#include "command_manager.h"
 #include "tab.h"
 
 class CardDatabaseModel;
@@ -26,6 +27,7 @@ class DeckPreviewDeckTagsDisplayWidget;
 class Response;
 class FilterTreeModel;
 class FilterBuilder;
+class CommandManager;
 
 class QTreeView;
 class QTextEdit;
@@ -147,6 +149,11 @@ protected:
     void actSwapCard(const ExactCard &card, const QString &zoneName);
     virtual void openDeckFromFile(const QString &fileName, DeckOpenLocation deckOpenLocation);
 
+    CommandManager *getCommandManager() const
+    {
+        return m_commandManager;
+    }
+
     // UI Menu Elements
     QMenu *viewMenu, *cardInfoDockMenu, *deckDockMenu, *filterDockMenu, *printingSelectorDockMenu;
 
@@ -155,6 +162,9 @@ protected:
     QAction *aFilterDockVisible, *aFilterDockFloating, *aPrintingSelectorDockVisible, *aPrintingSelectorDockFloating;
 
     bool modified = false;
+
+private:
+    CommandManager *m_commandManager;
 };
 
-#endif // TAB_GENERIC_DECK_EDITOR_H
+#endif

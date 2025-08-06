@@ -20,6 +20,7 @@ set(cockatrice_SOURCES
     src/client/replay_manager.cpp
     src/client/sound_engine.cpp
     src/client/tabs/abstract_tab_deck_editor.cpp
+    src/client/tabs/command_manager.cpp
     src/client/tabs/api/edhrec/tab_edhrec.cpp
     src/client/tabs/api/edhrec/tab_edhrec_main.cpp
     src/client/tabs/api/edhrec/display/commander/edhrec_commander_api_response_display_widget.cpp
