@@ -161,42 +161,43 @@ public slots:
     void updateUndoRedoState(bool canUndo, bool canRedo);
 
     /**
-     * @brief Adds a card to the deck (main deck or sideboard based on modifiers)
+     * @brief Adds cards to the deck
      * @param card The card to add
+     * @param zone The deck zone to add to (defaults to main deck)
+     * @param count The number of copies to add (defaults to 1)
      *
-     * If Ctrl is held, adds to sideboard; otherwise adds to main deck.
      * Token cards are automatically redirected to tokens zone.
      */
-    void actAddCard(const ExactCard &card);
+    void actAddCard(const ExactCard &card, const QString &zone = DECK_ZONE_MAIN, int count = 1);
 
     /**
-     * @brief Adds a card specifically to the sideboard
-     * @param card The card to add to sideboard
+     * @brief Removes cards from the deck
+     * @param card The card to remove
+     * @param zone The deck zone to remove from (defaults to main deck)
+     * @param count The number of copies to remove (defaults to 1)
      *
-     * Forces addition to sideboard regardless of modifier keys.
+     * Token cards are automatically handled in tokens zone regardless of specified zone.
      */
-    void actAddCardToSideboard(const ExactCard &card);
+    void actRemoveCard(const ExactCard &card, const QString &zone = DECK_ZONE_MAIN, int count = 1);
 
     /**
-     * @brief Decrements (removes one copy of) a card from specified zone
-     * @param card The card to decrement
+     * @brief Removes all copies of a card from the specified zone
+     * @param card The card to remove all copies of
      * @param zone The deck zone to remove from (defaults to main deck)
      *
      * Token cards are automatically handled in tokens zone regardless of specified zone.
      */
-    void actDecrementCard(const ExactCard &card, const QString &zone = DECK_ZONE_MAIN);
+    void actRemoveAllCard(const ExactCard &card, const QString &zone = DECK_ZONE_MAIN);
 
     /**
-     * @brief Decrements a card specifically from the main deck
-     * @param card The card to decrement from main deck
+     * @brief Swaps all instances of a card between two zones
+     * @param card The card to swap
+     * @param currentZone The zone in which the currently resides
+     *
+     * Moves ALL instances of the card from fromZone to toZone.
+     * Token cards are automatically handled in tokens zone.
      */
-    void actDecrementCardFromMainDeck(const ExactCard &card);
-
-    /**
-     * @brief Decrements a card specifically from the sideboard
-     * @param card The card to decrement from sideboard
-     */
-    void actDecrementCardFromSideboard(const ExactCard &card);
+    void actSwapCard(const ExactCard &card, const QString &currentZone);
 
     /**
      * @brief Opens a recently used deck file
@@ -503,26 +504,6 @@ protected:
      * @return true if deck is unmodified and newly created
      */
     bool isBlankNewDeck() const;
-
-    // Helper functions for card actions
-
-    /**
-     * @brief Helper method for adding cards to specific zones
-     * @param card The card to add
-     * @param zoneName Target zone (main, side, tokens)
-     *
-     * Creates add command, executes via CommandManager, and updates UI.
-     */
-    void addCardHelper(const ExactCard &card, QString zoneName);
-
-    /**
-     * @brief Swaps a card between main deck and sideboard
-     * @param card The card to swap
-     * @param zoneName Current zone of the card
-     *
-     * Creates swap command and executes via CommandManager.
-     */
-    void actSwapCard(const ExactCard &card, const QString &zoneName);
 
     /**
      * @brief Opens a deck file with specified location preference (virtual)

@@ -98,53 +98,40 @@ void AbstractTabDeckEditor::onDeckModified()
     deckMenu->setSaveStatus(!isBlankNewDeck());
 }
 
-void AbstractTabDeckEditor::addCardHelper(const ExactCard &card, QString zoneName)
-{
-    if (!card)
-        return;
-    if (card.getInfo().getIsToken())
-        zoneName = DECK_ZONE_TOKENS;
-
-    // Create and execute add card command
-    auto command = std::make_unique<AddCardCommand>(deckDockWidget->deckModel, card, zoneName);
-    if (m_commandManager->executeCommand(std::move(command))) {
-        // Find the newly added card for UI updates
-        QModelIndex newCardIndex = deckDockWidget->deckModel->findCard(card.getName(), zoneName);
-        if (newCardIndex.isValid()) {
-            deckDockWidget->deckView->clearSelection();
-            deckDockWidget->deckView->setCurrentIndex(newCardIndex);
-        }
-        setModified(true);
-        databaseDisplayDockWidget->searchEdit->setSelection(0, databaseDisplayDockWidget->searchEdit->text().length());
-    }
-}
-
-void AbstractTabDeckEditor::actAddCard(const ExactCard &card)
-{
-    if (QApplication::keyboardModifiers() & Qt::ControlModifier)
-        actAddCardToSideboard(card);
-    else
-        addCardHelper(card, DECK_ZONE_MAIN);
-    deckMenu->setSaveStatus(true);
-}
-
-void AbstractTabDeckEditor::actAddCardToSideboard(const ExactCard &card)
-{
-    addCardHelper(card, DECK_ZONE_SIDE);
-    deckMenu->setSaveStatus(true);
-}
-
-void AbstractTabDeckEditor::actDecrementCard(const ExactCard &card, const QString &zone)
+void AbstractTabDeckEditor::actAddCard(const ExactCard &card, const QString &zone, int count)
 {
     if (!card)
         return;
     
     QString targetZone = card.getInfo().getIsToken() ? DECK_ZONE_TOKENS : zone;
     
-    // Create and execute remove card command
-    auto command = std::make_unique<RemoveCardCommand>(deckDockWidget->deckModel, card, targetZone);
+    // Create and execute add card command with count parameter
+    auto command = std::make_unique<AddCardCommand>(deckDockWidget->deckModel, card, targetZone, count);
+    if (m_commandManager->executeCommand(std::move(command))) {
+        // Find the newly added card for UI updates
+        QModelIndex newCardIndex = deckDockWidget->deckModel->findCard(card.getName(), targetZone);
+        if (newCardIndex.isValid()) {
+            deckDockWidget->deckView->clearSelection();
+            deckDockWidget->deckView->setCurrentIndex(newCardIndex);
+        }
+        setModified(true);
+        deckMenu->setSaveStatus(true);
+        databaseDisplayDockWidget->searchEdit->setSelection(0, databaseDisplayDockWidget->searchEdit->text().length());
+    }
+}
+
+void AbstractTabDeckEditor::actRemoveCard(const ExactCard &card, const QString &zone, int count)
+{
+    if (!card)
+        return;
+    
+    QString targetZone = card.getInfo().getIsToken() ? DECK_ZONE_TOKENS : zone;
+    
+    // Create and execute remove card command with count parameter
+    auto command = std::make_unique<RemoveCardCommand>(deckDockWidget->deckModel, card, targetZone, count);
     if (m_commandManager->executeCommand(std::move(command))) {
         setModified(true);
+        deckMenu->setSaveStatus(true);
         
         // Update UI to show the card was decremented
         QString providerId = card.getPrinting().getUuid();
@@ -160,39 +147,70 @@ void AbstractTabDeckEditor::actDecrementCard(const ExactCard &card, const QStrin
     }
 }
 
-void AbstractTabDeckEditor::actDecrementCardFromMainDeck(const ExactCard &card)
+void AbstractTabDeckEditor::actRemoveAllCard(const ExactCard &card, const QString &zone)
 {
-    actDecrementCard(card, DECK_ZONE_MAIN);
+    if (!card)
+        return;
+    
+    QString targetZone = card.getInfo().getIsToken() ? DECK_ZONE_TOKENS : zone;
+    
+    // First find how many copies exist in the zone
+    QModelIndex index = deckDockWidget->deckModel->findCard(card.getName(), targetZone);
+    if (!index.isValid()) {
+        return; // Card not found in zone
+    }
+    
+    const QModelIndex numberIndex = index.sibling(index.row(), 0);
+    int currentCount = deckDockWidget->deckModel->data(numberIndex, Qt::EditRole).toInt();
+    
+    // Remove all copies using RemoveCardCommand with full count
+    auto command = std::make_unique<RemoveCardCommand>(deckDockWidget->deckModel, card, targetZone, currentCount);
+    if (m_commandManager->executeCommand(std::move(command))) {
+        setModified(true);
+        deckMenu->setSaveStatus(true);
+        
+        // Clear selection since card is completely removed
+        deckDockWidget->deckView->clearSelection();
+    }
 }
 
-void AbstractTabDeckEditor::actDecrementCardFromSideboard(const ExactCard &card)
-{
-    actDecrementCard(card, DECK_ZONE_SIDE);
-}
-
-void AbstractTabDeckEditor::actSwapCard(const ExactCard &card, const QString &zoneName)
+void AbstractTabDeckEditor::actSwapCard(const ExactCard &card, const QString &currentZone)
 {
     if (!card)
         return;
 
-    QString targetZone = card.getInfo().getIsToken() ? DECK_ZONE_TOKENS : zoneName;
-    QString otherZoneName = targetZone == DECK_ZONE_MAIN ? DECK_ZONE_SIDE : DECK_ZONE_MAIN;
+    // Token cards don't swap - they always stay in tokens zone
+    if (card.getInfo().getIsToken()) {
+        return;
+    }
     
-    // Create and execute swap card command
-    auto command = std::make_unique<SwapCardCommand>(deckDockWidget->deckModel, card, targetZone, otherZoneName);
+    QString otherZone = currentZone == DECK_ZONE_MAIN ? DECK_ZONE_SIDE : DECK_ZONE_MAIN;
+    
+    // First find how many copies exist in the current zone
+    QModelIndex index = deckDockWidget->deckModel->findCard(card.getName(), currentZone);
+    if (!index.isValid()) {
+        return; // Card not found in current zone
+    }
+    
+    const QModelIndex numberIndex = index.sibling(index.row(), 0);
+    int currentCount = deckDockWidget->deckModel->data(numberIndex, Qt::EditRole).toInt();
+    
+    // Swap ALL instances using SwapCardCommand with full count
+    auto command = std::make_unique<SwapCardCommand>(deckDockWidget->deckModel, card, currentZone, otherZone, currentCount);
     if (m_commandManager->executeCommand(std::move(command))) {
         setModified(true);
+        deckMenu->setSaveStatus(true);
         
-        // Update UI to show the card was swapped
+        // Update UI to show the card was swapped to the other zone
         QString providerId = card.getPrinting().getUuid();
         QString collectorNumber = card.getPrinting().getProperty("num");
-        QModelIndex index = deckDockWidget->deckModel->findCard(card.getName(), otherZoneName, providerId, collectorNumber);
-        if (!index.isValid()) {
-            index = deckDockWidget->deckModel->findCard(card.getName(), otherZoneName);
+        QModelIndex newIndex = deckDockWidget->deckModel->findCard(card.getName(), otherZone, providerId, collectorNumber);
+        if (!newIndex.isValid()) {
+            newIndex = deckDockWidget->deckModel->findCard(card.getName(), otherZone);
         }
-        if (index.isValid()) {
+        if (newIndex.isValid()) {
             deckDockWidget->deckView->clearSelection();
-            deckDockWidget->deckView->setCurrentIndex(index);
+            deckDockWidget->deckView->setCurrentIndex(newIndex);
         }
     }
 }
