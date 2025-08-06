@@ -42,7 +42,7 @@ class QMenu;
 class QAction;
 
 /**
- * @brief Abstract base class for deck editor tabs in the trading card game application
+ * @brief Abstract base class for deck editor tabs in Cockatrice
  *
  * This class provides the core functionality for deck editing interfaces, implementing
  * the Command pattern for undo/redo operations and managing multiple dock widgets for
@@ -69,9 +69,6 @@ public:
 
     /**
      * @brief Creates the menu system for this deck editor (pure virtual)
-     *
-     * Derived classes must implement this to provide appropriate menu structures
-     * for their specific deck editor type (e.g., constructed, limited, cube).
      */
     virtual void createMenus() = 0;
 
