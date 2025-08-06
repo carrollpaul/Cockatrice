@@ -34,6 +34,8 @@ public:
     {
         return nameEdit->text().simplified();
     }
+    void setUndoEnabled(bool enabled);
+    void setRedoEnabled(bool enabled);
 
 public slots:
     void cleanDeck();
