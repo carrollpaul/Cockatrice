@@ -142,6 +142,18 @@ void DeckEditorDeckDockWidget::createDeckDock()
     auto *tbSwapCard = new QToolButton(this);
     tbSwapCard->setDefaultAction(aSwapCard);
 
+    aUndo = new QAction(QString(), this);
+    aUndo->setIcon(QPixmap("theme:icons/undo"));
+    connect(aUndo, &QAction::triggered, this, &DeckEditorDeckDockWidget::actUndo);
+    auto *tbUndo = new QToolButton(this);
+    tbUndo->setDefaultAction(aUndo);
+
+    aRedo = new QAction(QString(), this);
+    aRedo->setIcon(QPixmap("theme:icons/redo"));
+    connect(aRedo, &QAction::triggered, this, &DeckEditorDeckDockWidget::actRedo);
+    auto *tbRedo = new QToolButton(this);
+    tbRedo->setDefaultAction(aRedo);
+
     auto *upperLayout = new QGridLayout;
     upperLayout->setObjectName("upperLayout");
     upperLayout->setContentsMargins(11, 11, 11, 0);
@@ -179,7 +191,9 @@ void DeckEditorDeckDockWidget::createDeckDock()
     lowerLayout->addWidget(tbDecrement, 0, 3);
     lowerLayout->addWidget(tbRemoveCard, 0, 4);
     lowerLayout->addWidget(tbSwapCard, 0, 5);
-    lowerLayout->addWidget(deckView, 1, 0, 1, 6);
+    lowerLayout->addWidget(tbUndo, 0, 6);
+    lowerLayout->addWidget(tbRedo, 0, 7);
+    lowerLayout->addWidget(deckView, 1, 0, 1, 8);
 
     // Create widgets for both layouts to make splitter work correctly
     auto *topWidget = new QWidget;
@@ -420,7 +434,30 @@ void DeckEditorDeckDockWidget::actIncrement()
     auto selectedRows = getSelectedCardNodes();
 
     for (const auto &index : selectedRows) {
-        offsetCountAtIndex(index, 1);
+        if (!index.isValid() || deckModel->hasChildren(index)) {
+            continue;
+        }
+
+        // Get card information from the model
+        QString cardName = index.sibling(index.row(), 1).data().toString();
+        QString cardProviderID = index.sibling(index.row(), 4).data().toString();
+        
+        // Get zone information from parent
+        QModelIndex gparent = index.parent().parent();
+        if (!gparent.isValid()) {
+            continue;
+        }
+        QString zoneName = gparent.sibling(gparent.row(), 1).data(Qt::EditRole).toString();
+
+        // Create the exact card and add using command pattern
+        ExactCard card = CardDatabaseManager::getInstance()->getCard({cardName, cardProviderID});
+        if (card) {
+            if (zoneName == DECK_ZONE_SIDE) {
+                deckEditor->actAddCardToSideboard(card);
+            } else {
+                deckEditor->actAddCard(card);
+            }
+        }
     }
 }
 
@@ -434,20 +471,40 @@ void DeckEditorDeckDockWidget::actSwapCard()
         deckView->setSelectionMode(QAbstractItemView::SingleSelection);
     }
 
-    bool isModified = false;
     for (const auto &currentIndex : selectedRows) {
-        if (swapCard(currentIndex)) {
-            isModified = true;
+        if (!currentIndex.isValid() || deckModel->hasChildren(currentIndex)) {
+            continue;
+        }
+
+        // Get card information from the model
+        QString cardName = currentIndex.sibling(currentIndex.row(), 1).data().toString();
+        QString cardProviderID = currentIndex.sibling(currentIndex.row(), 4).data().toString();
+        
+        // Get zone information from parent
+        QModelIndex gparent = currentIndex.parent().parent();
+        if (!gparent.isValid()) {
+            continue;
+        }
+        QString zoneName = gparent.sibling(gparent.row(), 1).data(Qt::EditRole).toString();
+
+        // Create the exact card and swap using command pattern
+        ExactCard card = CardDatabaseManager::getInstance()->getCard({cardName, cardProviderID});
+        if (card) {
+            deckEditor->actSwapCard(card, zoneName);
         }
     }
 
     deckView->setSelectionMode(QAbstractItemView::ExtendedSelection);
+}
 
-    if (isModified) {
-        emit deckModified();
-    }
+void DeckEditorDeckDockWidget::actUndo()
+{
+    deckEditor->getCommandManager()->undo();
+}
 
-    update();
+void DeckEditorDeckDockWidget::actRedo()
+{
+    deckEditor->getCommandManager()->redo();
 }
 
 /**
@@ -511,7 +568,26 @@ void DeckEditorDeckDockWidget::actDecrementSelection()
     }
 
     for (const auto &index : selectedRows) {
-        offsetCountAtIndex(index, -1);
+        if (!index.isValid() || deckModel->hasChildren(index)) {
+            continue;
+        }
+
+        // Get card information from the model
+        QString cardName = index.sibling(index.row(), 1).data().toString();
+        QString cardProviderID = index.sibling(index.row(), 4).data().toString();
+        
+        // Get zone information from parent
+        QModelIndex gparent = index.parent().parent();
+        if (!gparent.isValid()) {
+            continue;
+        }
+        QString zoneName = gparent.sibling(gparent.row(), 1).data(Qt::EditRole).toString();
+
+        // Create the exact card and decrement using command pattern
+        ExactCard card = CardDatabaseManager::getInstance()->getCard({cardName, cardProviderID});
+        if (card) {
+            deckEditor->actDecrementCard(card, zoneName);
+        }
     }
 
     deckView->setSelectionMode(QAbstractItemView::ExtendedSelection);
@@ -577,6 +653,8 @@ void DeckEditorDeckDockWidget::refreshShortcuts()
     aRemoveCard->setShortcuts(shortcuts.getShortcut("TabDeckEditor/aRemoveCard"));
     aIncrement->setShortcuts(shortcuts.getShortcut("TabDeckEditor/aIncrement"));
     aDecrement->setShortcuts(shortcuts.getShortcut("TabDeckEditor/aDecrement"));
+    aUndo->setShortcuts(shortcuts.getShortcut("TabDeckEditor/aUndo"));
+    aRedo->setShortcuts(shortcuts.getShortcut("TabDeckEditor/aRedo"));
 }
 
 void DeckEditorDeckDockWidget::retranslateUi()
@@ -595,4 +673,6 @@ void DeckEditorDeckDockWidget::retranslateUi()
     aDecrement->setText(tr("&Decrement number"));
     aRemoveCard->setText(tr("&Remove row"));
     aSwapCard->setText(tr("Swap card to/from sideboard"));
+    aUndo->setText(tr("&Undo"));
+    aRedo->setText(tr("&Redo"));
 }

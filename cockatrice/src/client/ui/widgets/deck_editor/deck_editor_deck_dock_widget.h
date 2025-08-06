@@ -46,6 +46,8 @@ public slots:
     void actDecrementSelection();
     void actSwapCard();
     void actRemoveCard();
+    void actUndo();
+    void actRedo();
     void offsetCountAtIndex(const QModelIndex &idx, int offset);
 
 signals:
@@ -73,7 +75,7 @@ private:
     QLabel *activeGroupCriteriaLabel;
     QComboBox *activeGroupCriteriaComboBox;
 
-    QAction *aRemoveCard, *aIncrement, *aDecrement, *aSwapCard;
+    QAction *aRemoveCard, *aIncrement, *aDecrement, *aSwapCard, *aUndo, *aRedo;
 
     void recursiveExpand(const QModelIndex &index);
     QModelIndexList getSelectedCardNodes() const;

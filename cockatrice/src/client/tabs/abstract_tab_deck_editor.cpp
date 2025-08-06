@@ -55,7 +55,6 @@ AbstractTabDeckEditor::AbstractTabDeckEditor(TabSupervisor *_tabSupervisor) : Ta
     connect(deckDockWidget, &DeckEditorDeckDockWidget::deckChanged, this, &AbstractTabDeckEditor::onDeckChanged);
     connect(deckDockWidget, &DeckEditorDeckDockWidget::deckModified, this, &AbstractTabDeckEditor::onDeckModified);
     connect(deckDockWidget, &DeckEditorDeckDockWidget::cardChanged, this, &AbstractTabDeckEditor::updateCard);
-    connect(this, &AbstractTabDeckEditor::decrementCard, deckDockWidget, &DeckEditorDeckDockWidget::actDecrementCard);
     connect(databaseDisplayDockWidget, &DeckEditorDatabaseDisplayWidget::cardChanged, this,
             &AbstractTabDeckEditor::updateCard);
     connect(databaseDisplayDockWidget, &DeckEditorDatabaseDisplayWidget::addCardToMainDeck, this,
@@ -72,12 +71,21 @@ AbstractTabDeckEditor::AbstractTabDeckEditor(TabSupervisor *_tabSupervisor) : Ta
 
     connect(&SettingsCache::instance().shortcuts(), &ShortcutsSettings::shortCutChanged, this,
             &AbstractTabDeckEditor::refreshShortcuts);
+
+    // Connect command manager signals to update UI state
+    connect(m_commandManager, &CommandManager::undoRedoStateChanged, this, &AbstractTabDeckEditor::updateUndoRedoState);
 }
 
 void AbstractTabDeckEditor::updateCard(const ExactCard &card)
 {
     cardInfoDockWidget->updateCard(card);
     printingSelectorDockWidget->printingSelector->setCard(card.getCardPtr(), DECK_ZONE_MAIN);
+}
+
+void AbstractTabDeckEditor::updateUndoRedoState(bool canUndo, bool canRedo)
+{
+    deckDockWidget->aUndo->setEnabled(canUndo);
+    deckDockWidget->aRedo->setEnabled(canRedo);
 }
 
 void AbstractTabDeckEditor::onDeckChanged()
@@ -126,27 +134,62 @@ void AbstractTabDeckEditor::actAddCardToSideboard(const ExactCard &card)
     deckMenu->setSaveStatus(true);
 }
 
-void AbstractTabDeckEditor::actDecrementCard(const ExactCard &card)
+void AbstractTabDeckEditor::actDecrementCard(const ExactCard &card, const QString &zone)
 {
-    emit decrementCard(card, DECK_ZONE_MAIN);
+    if (!card)
+        return;
+    
+    QString targetZone = card.getInfo().getIsToken() ? DECK_ZONE_TOKENS : zone;
+    
+    // Create and execute remove card command
+    auto command = std::make_unique<RemoveCardCommand>(deckDockWidget->deckModel, card, targetZone);
+    if (m_commandManager->executeCommand(std::move(command))) {
+        setModified(true);
+        
+        // Update UI to show the card was decremented
+        QString providerId = card.getPrinting().getUuid();
+        QString collectorNumber = card.getPrinting().getProperty("num");
+        QModelIndex index = deckDockWidget->deckModel->findCard(card.getName(), targetZone, providerId, collectorNumber);
+        if (!index.isValid()) {
+            index = deckDockWidget->deckModel->findCard(card.getName(), targetZone);
+        }
+        if (index.isValid()) {
+            deckDockWidget->deckView->clearSelection();
+            deckDockWidget->deckView->setCurrentIndex(index);
+        }
+    }
 }
 
 void AbstractTabDeckEditor::actDecrementCardFromSideboard(const ExactCard &card)
 {
-    emit decrementCard(card, DECK_ZONE_SIDE);
+    actDecrementCard(card, DECK_ZONE_SIDE);
 }
 
 void AbstractTabDeckEditor::actSwapCard(const ExactCard &card, const QString &zoneName)
 {
-    QString providerId = card.getPrinting().getUuid();
-    QString collectorNumber = card.getPrinting().getProperty("num");
+    if (!card)
+        return;
 
-    QModelIndex foundCard = deckDockWidget->deckModel->findCard(card.getName(), zoneName, providerId, collectorNumber);
-    if (!foundCard.isValid()) {
-        foundCard = deckDockWidget->deckModel->findCard(card.getName(), zoneName);
+    QString targetZone = card.getInfo().getIsToken() ? DECK_ZONE_TOKENS : zoneName;
+    QString otherZoneName = targetZone == DECK_ZONE_MAIN ? DECK_ZONE_SIDE : DECK_ZONE_MAIN;
+    
+    // Create and execute swap card command
+    auto command = std::make_unique<SwapCardCommand>(deckDockWidget->deckModel, card, targetZone, otherZoneName);
+    if (m_commandManager->executeCommand(std::move(command))) {
+        setModified(true);
+        
+        // Update UI to show the card was swapped
+        QString providerId = card.getPrinting().getUuid();
+        QString collectorNumber = card.getPrinting().getProperty("num");
+        QModelIndex index = deckDockWidget->deckModel->findCard(card.getName(), otherZoneName, providerId, collectorNumber);
+        if (!index.isValid()) {
+            index = deckDockWidget->deckModel->findCard(card.getName(), otherZoneName);
+        }
+        if (index.isValid()) {
+            deckDockWidget->deckView->clearSelection();
+            deckDockWidget->deckView->setCurrentIndex(index);
+        }
     }
-
-    deckDockWidget->swapCard(foundCard);
 }
 
 /**

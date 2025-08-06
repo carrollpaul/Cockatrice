@@ -74,9 +74,10 @@ public slots:
     virtual void onDeckChanged();
     virtual void onDeckModified();
     void updateCard(const ExactCard &card);
+    void updateUndoRedoState(bool canUndo, bool canRedo);
     void actAddCard(const ExactCard &card);
     void actAddCardToSideboard(const ExactCard &card);
-    void actDecrementCard(const ExactCard &card);
+    void actDecrementCard(const ExactCard &card, const QString &zone = DECK_ZONE_MAIN);
     void actDecrementCardFromSideboard(const ExactCard &card);
     void actOpenRecent(const QString &fileName);
     void filterTreeChanged(FilterTree *filterTree);
@@ -87,7 +88,6 @@ public slots:
 signals:
     void openDeckEditor(const DeckLoader *deckLoader);
     void deckEditorClosing(AbstractTabDeckEditor *tab);
-    void decrementCard(const ExactCard &card, QString zoneName);
 
 protected slots:
     // Deck Operations
