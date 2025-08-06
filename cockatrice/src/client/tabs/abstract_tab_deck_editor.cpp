@@ -97,12 +97,18 @@ void AbstractTabDeckEditor::addCardHelper(const ExactCard &card, QString zoneNam
     if (card.getInfo().getIsToken())
         zoneName = DECK_ZONE_TOKENS;
 
-    QModelIndex newCardIndex = deckDockWidget->deckModel->addCard(card, zoneName);
-    // recursiveExpand(newCardIndex);
-    deckDockWidget->deckView->clearSelection();
-    deckDockWidget->deckView->setCurrentIndex(newCardIndex);
-    setModified(true);
-    databaseDisplayDockWidget->searchEdit->setSelection(0, databaseDisplayDockWidget->searchEdit->text().length());
+    // Create and execute add card command
+    auto command = std::make_unique<AddCardCommand>(deckDockWidget->deckModel, card, zoneName);
+    if (m_commandManager->executeCommand(std::move(command))) {
+        // Find the newly added card for UI updates
+        QModelIndex newCardIndex = deckDockWidget->deckModel->findCard(card.getName(), zoneName);
+        if (newCardIndex.isValid()) {
+            deckDockWidget->deckView->clearSelection();
+            deckDockWidget->deckView->setCurrentIndex(newCardIndex);
+        }
+        setModified(true);
+        databaseDisplayDockWidget->searchEdit->setSelection(0, databaseDisplayDockWidget->searchEdit->text().length());
+    }
 }
 
 void AbstractTabDeckEditor::actAddCard(const ExactCard &card)
