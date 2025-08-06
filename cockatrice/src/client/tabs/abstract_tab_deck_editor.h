@@ -78,6 +78,7 @@ public slots:
     void actAddCard(const ExactCard &card);
     void actAddCardToSideboard(const ExactCard &card);
     void actDecrementCard(const ExactCard &card, const QString &zone = DECK_ZONE_MAIN);
+    void actDecrementCardFromMainDeck(const ExactCard &card);
     void actDecrementCardFromSideboard(const ExactCard &card);
     void actOpenRecent(const QString &fileName);
     void filterTreeChanged(FilterTree *filterTree);

@@ -62,7 +62,7 @@ AbstractTabDeckEditor::AbstractTabDeckEditor(TabSupervisor *_tabSupervisor) : Ta
     connect(databaseDisplayDockWidget, &DeckEditorDatabaseDisplayWidget::addCardToSideboard, this,
             &AbstractTabDeckEditor::actAddCardToSideboard);
     connect(databaseDisplayDockWidget, &DeckEditorDatabaseDisplayWidget::decrementCardFromMainDeck, this,
-            &AbstractTabDeckEditor::actDecrementCard);
+            &AbstractTabDeckEditor::actDecrementCardFromMainDeck);
     connect(databaseDisplayDockWidget, &DeckEditorDatabaseDisplayWidget::decrementCardFromSideboard, this,
             &AbstractTabDeckEditor::actDecrementCardFromSideboard);
 
@@ -158,6 +158,11 @@ void AbstractTabDeckEditor::actDecrementCard(const ExactCard &card, const QStrin
             deckDockWidget->deckView->setCurrentIndex(index);
         }
     }
+}
+
+void AbstractTabDeckEditor::actDecrementCardFromMainDeck(const ExactCard &card)
+{
+    actDecrementCard(card, DECK_ZONE_MAIN);
 }
 
 void AbstractTabDeckEditor::actDecrementCardFromSideboard(const ExactCard &card)
