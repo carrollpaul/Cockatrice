@@ -57,21 +57,13 @@ AbstractTabDeckEditor::AbstractTabDeckEditor(TabSupervisor *_tabSupervisor) : Ta
     connect(deckDockWidget, &DeckEditorDeckDockWidget::deckChanged, this, &AbstractTabDeckEditor::onDeckChanged);
     connect(deckDockWidget, &DeckEditorDeckDockWidget::deckModified, this, &AbstractTabDeckEditor::onDeckModified);
     connect(deckDockWidget, &DeckEditorDeckDockWidget::cardChanged, this, &AbstractTabDeckEditor::updateCard);
-    connect(this, &AbstractTabDeckEditor::decrementCard, deckDockWidget, &DeckEditorDeckDockWidget::actDecrementCard);
+    connect(this, &AbstractTabDeckEditor::decrementCard, this, &DeckEditorDeckDockWidget::actDecrementCard);
+    connect(databaseDisplayDockWidget, &DeckEditorDatabaseDisplayWidget::addCard, this,
+            &AbstractTabDeckEditor::actAddCard);
     connect(databaseDisplayDockWidget, &DeckEditorDatabaseDisplayWidget::cardChanged, this,
             &AbstractTabDeckEditor::updateCard);
-    connect(databaseDisplayDockWidget, &DeckEditorDatabaseDisplayWidget::addCardToMainDeck, this,
-            &AbstractTabDeckEditor::actAddCard);
-    connect(databaseDisplayDockWidget, &DeckEditorDatabaseDisplayWidget::addCardToSideboard, this,
-            &AbstractTabDeckEditor::actAddCardToSideboard);
-    connect(databaseDisplayDockWidget, &DeckEditorDatabaseDisplayWidget::decrementCardFromMainDeck, this,
-            &AbstractTabDeckEditor::actDecrementCard);
-    connect(databaseDisplayDockWidget, &DeckEditorDatabaseDisplayWidget::decrementCardFromSideboard, this,
-            &AbstractTabDeckEditor::actDecrementCardFromSideboard);
-
     connect(filterDockWidget, &DeckEditorFilterDockWidget::clearAllDatabaseFilters, databaseDisplayDockWidget,
             &DeckEditorDatabaseDisplayWidget::clearAllDatabaseFilters);
-
     connect(&SettingsCache::instance().shortcuts(), &ShortcutsSettings::shortCutChanged, this,
             &AbstractTabDeckEditor::refreshShortcuts);
 
@@ -127,15 +119,22 @@ void AbstractTabDeckEditor::onDeckModified()
     deckMenu->setSaveStatus(!isBlankNewDeck());
 }
 
-void AbstractTabDeckEditor::actAddCard(const ExactCard &card)
+void AbstractTabDeckEditor::actAddCard(const ExactCard &card, const QString &targetZone = QString())
 {
     if (!card)
         return;
 
-    // Determine target zone based on modifier key
-    QString zoneName = (QApplication::keyboardModifiers() & Qt::ControlModifier) ? DECK_ZONE_SIDE : DECK_ZONE_MAIN;
+    QString zoneName;
 
-    // Token cards always go to tokens zone
+    // Use explicit target zone if provided
+    if (!targetZone.isEmpty()) {
+        zoneName = targetZone;
+    } else {
+        // Determine target zone based on modifier key
+        zoneName = (QApplication::keyboardModifiers() & Qt::ControlModifier) ? DECK_ZONE_SIDE : DECK_ZONE_MAIN;
+    }
+
+    // Token cards always go to tokens zone (override any other choice)
     if (card.getInfo().getIsToken())
         zoneName = DECK_ZONE_TOKENS;
 

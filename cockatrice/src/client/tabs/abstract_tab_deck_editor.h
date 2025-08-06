@@ -74,10 +74,8 @@ public slots:
     virtual void onDeckChanged();
     virtual void onDeckModified();
     void updateCard(const ExactCard &card);
-    void actAddCard(const ExactCard &card);
-    void actAddCardToSideboard(const ExactCard &card);
+    void actAddCard(const ExactCard &card, const QString &targetZone = QString());
     void actDecrementCard(const ExactCard &card);
-    void actDecrementCardFromSideboard(const ExactCard &card);
     void actOpenRecent(const QString &fileName);
     void filterTreeChanged(FilterTree *filterTree);
     void closeRequest(bool forced = false) override;
@@ -144,13 +142,15 @@ protected:
     bool isBlankNewDeck() const;
 
     // Helper functions for card actions
-    void addCardHelper(const ExactCard &card, QString zoneName);
     void actSwapCard(const ExactCard &card, const QString &zoneName);
     virtual void openDeckFromFile(const QString &fileName, DeckOpenLocation deckOpenLocation);
 
     // Command Management
-    CommandManager *getCommandManager() const { return m_commandManager; }
-    
+    CommandManager *getCommandManager() const
+    {
+        return m_commandManager;
+    }
+
     // UI Menu Elements
     QMenu *viewMenu, *cardInfoDockMenu, *deckDockMenu, *filterDockMenu, *printingSelectorDockMenu;
 
@@ -159,7 +159,7 @@ protected:
     QAction *aFilterDockVisible, *aFilterDockFloating, *aPrintingSelectorDockVisible, *aPrintingSelectorDockFloating;
 
     bool modified = false;
-    
+
 private:
     CommandManager *m_commandManager;
 };

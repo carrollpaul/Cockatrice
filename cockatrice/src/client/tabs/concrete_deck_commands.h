@@ -1,8 +1,8 @@
 #ifndef CONCRETE_DECK_COMMANDS_H
 #define CONCRETE_DECK_COMMANDS_H
 
-#include "../../deck/deck_loader.h"
 #include "../../deck/deck_list_model.h"
+#include "../../deck/deck_loader.h"
 #include "../../game/cards/exact_card.h"
 #include "deck_command.h"
 
@@ -22,19 +22,19 @@ public:
      * @param count Number of copies to add (default: 1)
      */
     AddCardCommand(DeckListModel *model, const ExactCard &card, const QString &zone, int count = 1)
-        : m_model(model), m_card(card), m_zone(zone), m_count(count), m_executed(false)
+        : m_deck(model), m_card(card), m_zone(zone), m_count(count), m_executed(false)
     {
     }
 
     bool execute() override
     {
-        if (!m_model || !isValidCard(m_card) || m_count <= 0) {
+        if (!m_deck || !isValidCard(m_card) || m_count <= 0) {
             return false;
         }
 
         // Add the specified number of cards
         for (int i = 0; i < m_count; ++i) {
-            QModelIndex index = m_model->addCard(m_card, m_zone);
+            QModelIndex index = m_deck->addCard(m_card, m_zone);
             m_addedIndexes.append(index);
         }
 
@@ -44,7 +44,7 @@ public:
 
     bool undo() override
     {
-        if (!m_executed || !m_model || !isValidCard(m_card)) {
+        if (!m_executed || !m_deck || !isValidCard(m_card)) {
             return false;
         }
 
@@ -52,11 +52,11 @@ public:
         for (const QModelIndex &index : m_addedIndexes) {
             if (index.isValid()) {
                 const QModelIndex numberIndex = index.sibling(index.row(), 0);
-                int currentCount = m_model->data(numberIndex, Qt::EditRole).toInt();
+                int currentCount = m_deck->data(numberIndex, Qt::EditRole).toInt();
                 if (currentCount > 1) {
-                    m_model->setData(numberIndex, currentCount - 1, Qt::EditRole);
+                    m_deck->setData(numberIndex, currentCount - 1, Qt::EditRole);
                 } else {
-                    m_model->removeRow(index.row(), index.parent());
+                    m_deck->removeRow(index.row(), index.parent());
                 }
             }
         }
@@ -88,7 +88,7 @@ public:
         }
 
         // Can merge if same card, same zone, same model, and both are recent
-        return m_model == otherAdd->m_model && m_card.getName() == otherAdd->m_card.getName() &&
+        return m_deck == otherAdd->m_deck && m_card.getName() == otherAdd->m_card.getName() &&
                m_zone == otherAdd->m_zone && qAbs(getTimestamp() - otherAdd->getTimestamp()) < 5000; // Within 5 seconds
     }
 
@@ -109,7 +109,7 @@ public:
     }
 
 private:
-    DeckListModel *m_model;
+    DeckListModel *m_deck;
     ExactCard m_card;
     QString m_zone;
     int m_count;
@@ -142,13 +142,13 @@ public:
      * @param count Number of copies to remove (default: 1)
      */
     RemoveCardCommand(DeckListModel *model, const ExactCard &card, const QString &zone, int count = 1)
-        : m_model(model), m_card(card), m_zone(zone), m_count(count), m_executed(false)
+        : m_deck(model), m_card(card), m_zone(zone), m_count(count), m_executed(false)
     {
     }
 
     bool execute() override
     {
-        if (!m_model || !isValidCard(m_card) || m_count <= 0) {
+        if (!m_deck || !isValidCard(m_card) || m_count <= 0) {
             return false;
         }
 
@@ -159,23 +159,23 @@ public:
         for (int i = 0; i < m_count; ++i) {
             QString providerId = m_card.getPrinting().getUuid();
             QString collectorNumber = m_card.getPrinting().getProperty("num");
-            
-            QModelIndex index = m_model->findCard(m_card.getName(), m_zone, providerId, collectorNumber);
+
+            QModelIndex index = m_deck->findCard(m_card.getName(), m_zone, providerId, collectorNumber);
             if (!index.isValid()) {
-                index = m_model->findCard(m_card.getName(), m_zone); // Fallback to any printing
+                index = m_deck->findCard(m_card.getName(), m_zone); // Fallback to any printing
             }
-            
+
             if (index.isValid()) {
                 const QModelIndex numberIndex = index.sibling(index.row(), 0);
-                int currentCount = m_model->data(numberIndex, Qt::EditRole).toInt();
-                
+                int currentCount = m_deck->data(numberIndex, Qt::EditRole).toInt();
+
                 if (currentCount > 1) {
                     // Decrement count
-                    m_model->setData(numberIndex, currentCount - 1, Qt::EditRole);
+                    m_deck->setData(numberIndex, currentCount - 1, Qt::EditRole);
                     m_removedCards.append({index, false}); // false = decremented, not removed
                 } else {
                     // Remove the entire row
-                    m_model->removeRow(index.row(), index.parent());
+                    m_deck->removeRow(index.row(), index.parent());
                     m_removedCards.append({index, true}); // true = row removed
                 }
                 m_actuallyRemoved++;
@@ -191,7 +191,7 @@ public:
 
     bool undo() override
     {
-        if (!m_executed || !m_model || !isValidCard(m_card)) {
+        if (!m_executed || !m_deck || !isValidCard(m_card)) {
             return false;
         }
 
@@ -201,14 +201,14 @@ public:
             const auto &removedCard = m_removedCards[i];
             if (removedCard.second) {
                 // Row was removed - add the card back
-                m_model->addCard(m_card, m_zone);
+                m_deck->addCard(m_card, m_zone);
             } else {
                 // Count was decremented - increment it back
-                QModelIndex index = m_model->findCard(m_card.getName(), m_zone);
+                QModelIndex index = m_deck->findCard(m_card.getName(), m_zone);
                 if (index.isValid()) {
                     const QModelIndex numberIndex = index.sibling(index.row(), 0);
-                    int currentCount = m_model->data(numberIndex, Qt::EditRole).toInt();
-                    m_model->setData(numberIndex, currentCount + 1, Qt::EditRole);
+                    int currentCount = m_deck->data(numberIndex, Qt::EditRole).toInt();
+                    m_deck->setData(numberIndex, currentCount + 1, Qt::EditRole);
                 }
             }
         }
@@ -240,7 +240,7 @@ public:
         }
 
         // Can merge if same card, same zone, same model, and both are recent
-        return m_model == otherRemove->m_model && m_card.getName() == otherRemove->m_card.getName() &&
+        return m_deck == otherRemove->m_deck && m_card.getName() == otherRemove->m_card.getName() &&
                m_zone == otherRemove->m_zone &&
                qAbs(getTimestamp() - otherRemove->getTimestamp()) < 5000; // Within 5 seconds
     }
@@ -262,7 +262,7 @@ public:
     }
 
 private:
-    DeckListModel *m_model;
+    DeckListModel *m_deck;
     ExactCard m_card;
     QString m_zone;
     int m_count;
@@ -301,13 +301,13 @@ public:
                     const QString &fromZone,
                     const QString &toZone,
                     int count = 1)
-        : m_model(model), m_card(card), m_fromZone(fromZone), m_toZone(toZone), m_count(count), m_executed(false)
+        : m_deck(model), m_card(card), m_fromZone(fromZone), m_toZone(toZone), m_count(count), m_executed(false)
     {
     }
 
     bool execute() override
     {
-        if (!m_model || !isValidCard(m_card) || m_count <= 0) {
+        if (!m_deck || !isValidCard(m_card) || m_count <= 0) {
             return false;
         }
 
@@ -322,27 +322,27 @@ public:
         for (int i = 0; i < m_count; ++i) {
             QString providerId = m_card.getPrinting().getUuid();
             QString collectorNumber = m_card.getPrinting().getProperty("num");
-            
-            QModelIndex fromIndex = m_model->findCard(m_card.getName(), m_fromZone, providerId, collectorNumber);
+
+            QModelIndex fromIndex = m_deck->findCard(m_card.getName(), m_fromZone, providerId, collectorNumber);
             if (!fromIndex.isValid()) {
-                fromIndex = m_model->findCard(m_card.getName(), m_fromZone);
+                fromIndex = m_deck->findCard(m_card.getName(), m_fromZone);
             }
-            
+
             if (fromIndex.isValid()) {
                 const QModelIndex numberIndex = fromIndex.sibling(fromIndex.row(), 0);
-                int currentCount = m_model->data(numberIndex, Qt::EditRole).toInt();
-                
+                int currentCount = m_deck->data(numberIndex, Qt::EditRole).toInt();
+
                 // Remove from source
                 bool wasRowRemoved = false;
                 if (currentCount > 1) {
-                    m_model->setData(numberIndex, currentCount - 1, Qt::EditRole);
+                    m_deck->setData(numberIndex, currentCount - 1, Qt::EditRole);
                 } else {
-                    m_model->removeRow(fromIndex.row(), fromIndex.parent());
+                    m_deck->removeRow(fromIndex.row(), fromIndex.parent());
                     wasRowRemoved = true;
                 }
-                
+
                 // Add to destination
-                QModelIndex toIndex = m_model->addCard(m_card, m_toZone);
+                QModelIndex toIndex = m_deck->addCard(m_card, m_toZone);
                 m_movedCards.append({fromIndex, toIndex, wasRowRemoved});
                 m_actuallyMoved++;
             } else {
@@ -356,35 +356,35 @@ public:
 
     bool undo() override
     {
-        if (!m_executed || !m_model || !isValidCard(m_card)) {
+        if (!m_executed || !m_deck || !isValidCard(m_card)) {
             return false;
         }
 
         // Restore the cards we moved (in reverse order)
         for (int i = m_movedCards.size() - 1; i >= 0; --i) {
             const auto &moveInfo = m_movedCards[i];
-            
+
             // Remove from destination zone
-            QModelIndex toIndex = m_model->findCard(m_card.getName(), m_toZone);
+            QModelIndex toIndex = m_deck->findCard(m_card.getName(), m_toZone);
             if (toIndex.isValid()) {
                 const QModelIndex numberIndex = toIndex.sibling(toIndex.row(), 0);
-                int currentCount = m_model->data(numberIndex, Qt::EditRole).toInt();
+                int currentCount = m_deck->data(numberIndex, Qt::EditRole).toInt();
                 if (currentCount > 1) {
-                    m_model->setData(numberIndex, currentCount - 1, Qt::EditRole);
+                    m_deck->setData(numberIndex, currentCount - 1, Qt::EditRole);
                 } else {
-                    m_model->removeRow(toIndex.row(), toIndex.parent());
+                    m_deck->removeRow(toIndex.row(), toIndex.parent());
                 }
             }
-            
+
             // Restore to source zone
             if (moveInfo.wasRowRemoved) {
-                m_model->addCard(m_card, m_fromZone);
+                m_deck->addCard(m_card, m_fromZone);
             } else {
-                QModelIndex fromIndex = m_model->findCard(m_card.getName(), m_fromZone);
+                QModelIndex fromIndex = m_deck->findCard(m_card.getName(), m_fromZone);
                 if (fromIndex.isValid()) {
                     const QModelIndex numberIndex = fromIndex.sibling(fromIndex.row(), 0);
-                    int currentCount = m_model->data(numberIndex, Qt::EditRole).toInt();
-                    m_model->setData(numberIndex, currentCount + 1, Qt::EditRole);
+                    int currentCount = m_deck->data(numberIndex, Qt::EditRole).toInt();
+                    m_deck->setData(numberIndex, currentCount + 1, Qt::EditRole);
                 }
             }
         }
@@ -419,7 +419,7 @@ public:
         }
 
         // Can merge if same card, same zones, same model, and both are recent
-        return m_model == otherSwap->m_model && m_card.getName() == otherSwap->m_card.getName() &&
+        return m_deck == otherSwap->m_deck && m_card.getName() == otherSwap->m_card.getName() &&
                m_fromZone == otherSwap->m_fromZone && m_toZone == otherSwap->m_toZone &&
                qAbs(getTimestamp() - otherSwap->getTimestamp()) < 5000; // Within 5 seconds
     }
@@ -441,13 +441,14 @@ public:
     }
 
 private:
-    struct MoveInfo {
+    struct MoveInfo
+    {
         QModelIndex fromIndex;
         QModelIndex toIndex;
         bool wasRowRemoved;
     };
-    
-    DeckListModel *m_model;
+
+    DeckListModel *m_deck;
     ExactCard m_card;
     QString m_fromZone;
     QString m_toZone;

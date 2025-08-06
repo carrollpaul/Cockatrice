@@ -44,18 +44,14 @@ DeckEditorDatabaseDisplayWidget::DeckEditorDatabaseDisplayWidget(AbstractTabDeck
 
     searchKeySignals.setObjectName("searchKeySignals");
     connect(searchEdit, &SearchLineEdit::textChanged, this, &DeckEditorDatabaseDisplayWidget::updateSearch);
-    connect(&searchKeySignals, &KeySignals::onEnter, this, &DeckEditorDatabaseDisplayWidget::actAddCardToMainDeck);
-    connect(&searchKeySignals, &KeySignals::onCtrlAltEqual, this,
-            &DeckEditorDatabaseDisplayWidget::actAddCardToMainDeck);
-    connect(&searchKeySignals, &KeySignals::onCtrlAltRBracket, this,
-            &DeckEditorDatabaseDisplayWidget::actAddCardToSideboard);
-    connect(&searchKeySignals, &KeySignals::onCtrlAltMinus, this,
-            &DeckEditorDatabaseDisplayWidget::actDecrementCardFromMainDeck);
+    connect(&searchKeySignals, &KeySignals::onEnter, this, &DeckEditorDatabaseDisplayWidget::actAddCard);
+    connect(&searchKeySignals, &KeySignals::onCtrlAltEqual, this, &DeckEditorDatabaseDisplayWidget::actAddCard);
+    connect(&searchKeySignals, &KeySignals::onCtrlAltRBracket, this, &DeckEditorDatabaseDisplayWidget::actAddCard);
+    connect(&searchKeySignals, &KeySignals::onCtrlAltMinus, this, &DeckEditorDatabaseDisplayWidget::actDecrementCard);
     connect(&searchKeySignals, &KeySignals::onCtrlAltLBracket, this,
-            &DeckEditorDatabaseDisplayWidget::actDecrementCardFromSideboard);
-    connect(&searchKeySignals, &KeySignals::onCtrlAltEnter, this,
-            &DeckEditorDatabaseDisplayWidget::actAddCardToSideboard);
-    connect(&searchKeySignals, &KeySignals::onCtrlEnter, this, &DeckEditorDatabaseDisplayWidget::actAddCardToSideboard);
+            &DeckEditorDatabaseDisplayWidget::actDecrementCard);
+    connect(&searchKeySignals, &KeySignals::onCtrlAltEnter, this, &DeckEditorDatabaseDisplayWidget::actAddCard);
+    connect(&searchKeySignals, &KeySignals::onCtrlEnter, this, &DeckEditorDatabaseDisplayWidget::actAddCard);
     connect(&searchKeySignals, &KeySignals::onCtrlC, this, &DeckEditorDatabaseDisplayWidget::copyDatabaseCellContents);
     connect(help, &QAction::triggered, this, [this] { createSearchSyntaxHelpWindow(searchEdit); });
 
@@ -80,7 +76,7 @@ DeckEditorDatabaseDisplayWidget::DeckEditorDatabaseDisplayWidget(AbstractTabDeck
             &DeckEditorDatabaseDisplayWidget::databaseCustomMenu);
     connect(databaseView->selectionModel(), &QItemSelectionModel::currentRowChanged, this,
             &DeckEditorDatabaseDisplayWidget::updateCard);
-    connect(databaseView, &QTreeView::doubleClicked, this, &DeckEditorDatabaseDisplayWidget::actAddCardToMainDeck);
+    connect(databaseView, &QTreeView::doubleClicked, this, &DeckEditorDatabaseDisplayWidget::actAddCard);
 
     QByteArray dbHeaderState = SettingsCache::instance().layouts().getDeckEditorDbHeaderState();
     if (dbHeaderState.isNull()) {
@@ -96,13 +92,13 @@ DeckEditorDatabaseDisplayWidget::DeckEditorDatabaseDisplayWidget(AbstractTabDeck
 
     aAddCard = new QAction(QString(), this);
     aAddCard->setIcon(QPixmap("theme:icons/arrow_right_green"));
-    connect(aAddCard, &QAction::triggered, this, &DeckEditorDatabaseDisplayWidget::actAddCardToMainDeck);
+    connect(aAddCard, &QAction::triggered, this, &DeckEditorDatabaseDisplayWidget::actAddCard);
     auto *tbAddCard = new QToolButton(this);
     tbAddCard->setDefaultAction(aAddCard);
 
     aAddCardToSideboard = new QAction(QString(), this);
     aAddCardToSideboard->setIcon(QPixmap("theme:icons/arrow_right_blue"));
-    connect(aAddCardToSideboard, &QAction::triggered, this, &DeckEditorDatabaseDisplayWidget::actAddCardToSideboard);
+    connect(aAddCardToSideboard, &QAction::triggered, this, &DeckEditorDatabaseDisplayWidget::actAddCard);
     auto *tbAddCardToSideboard = new QToolButton(this);
     tbAddCardToSideboard->setDefaultAction(aAddCardToSideboard);
 
@@ -147,22 +143,22 @@ void DeckEditorDatabaseDisplayWidget::updateCard(const QModelIndex &current, con
     }
 }
 
-void DeckEditorDatabaseDisplayWidget::actAddCardToMainDeck()
+void DeckEditorDatabaseDisplayWidget::actAddCard()
 {
     emit addCardToMainDeck(currentCard());
 }
 
-void DeckEditorDatabaseDisplayWidget::actAddCardToSideboard()
+void DeckEditorDatabaseDisplayWidget::actAddCard()
 {
     emit addCardToSideboard(currentCard());
 }
 
-void DeckEditorDatabaseDisplayWidget::actDecrementCardFromMainDeck()
+void DeckEditorDatabaseDisplayWidget::actDecrementCard()
 {
     emit decrementCardFromMainDeck(currentCard());
 }
 
-void DeckEditorDatabaseDisplayWidget::actDecrementCardFromSideboard()
+void DeckEditorDatabaseDisplayWidget::actDecrementCard()
 {
     emit decrementCardFromSideboard(currentCard());
 }
@@ -197,8 +193,8 @@ void DeckEditorDatabaseDisplayWidget::databaseCustomMenu(QPoint point)
         }
         edhRecCard = menu.addAction(tr("Show on EDHRec (Card)"));
 
-        connect(addToDeck, &QAction::triggered, this, &DeckEditorDatabaseDisplayWidget::actAddCardToMainDeck);
-        connect(addToSideboard, &QAction::triggered, this, &DeckEditorDatabaseDisplayWidget::actAddCardToSideboard);
+        connect(addToDeck, &QAction::triggered, this, &DeckEditorDatabaseDisplayWidget::actAddCard);
+        connect(addToSideboard, &QAction::triggered, this, &DeckEditorDatabaseDisplayWidget::actAddCard);
         connect(selectPrinting, &QAction::triggered, this, [this, card] { deckEditor->showPrintingSelector(); });
         connect(edhRecCard, &QAction::triggered, this,
                 [this, card] { deckEditor->getTabSupervisor()->addEdhrecTab(card.getCardPtr()); });
